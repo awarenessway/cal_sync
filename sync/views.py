@@ -13,6 +13,11 @@ from sync.serializers import BookingSerializer
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
+    
+    lookup_field = 'external_id'
+    lookup_value_regex = '[^/]+'   # allow dashes, etc.
+
+
 
 class SyncView(APIView):
     """
