@@ -18,6 +18,7 @@ class SyncView(APIView):
     - POST /api/sync/{apt}/      → pull Airbnb iCal, upsert into Booking
     - GET  /ical/availability/{apt}.ics → emit ICS of all Booking for apt
     """
+    format_suffixes = ['.ics', '.json']
     def post(self, request, apartment_id):
         ics_url = f"https://www.airbnb.com/calendar/ical/<YOUR_TOKEN>_{apartment_id}.ics"
         resp = requests.get(ics_url)
