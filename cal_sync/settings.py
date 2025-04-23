@@ -134,8 +134,7 @@ CAL_SYNC_ICS_URL    = CAL_SYNC_BASE_URL + "/ical/availability/{apartment_id}.ics
 CAL_SYNC_UPDATE_URL = CAL_SYNC_BASE_URL + "/api/sync/{apartment_id}/"
 
 AIRBNB_ICS_URLS = {
-    1: "https://…/export_calendar_apt1.ics",
-    2: "https://…/export_calendar_apt2.ics",
-    3: "https://…/export_calendar_apt3.ics",
+    1: "https://www.airbnb.com/calendar/ical/1066306539353723381.ics?s=7e73408d5ebbdfaf3f1791891c9a551d&locale=en-GB",
+    2: "https://www.airbnb.com/calendar/ical/877555293331545850.ics?s=a84b5fd86c5419f5fa257f88971ec889&locale=en-GB",
+    3: "https://www.airbnb.com/calendar/ical/1286775849752244350.ics?s=b45a941a9441a5445f09bbe396e58e93&locale=en-GB",
 }
-
