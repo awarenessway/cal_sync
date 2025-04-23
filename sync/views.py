@@ -3,11 +3,12 @@ import requests
 import icalendar
 from django.conf import settings
 from django.http import HttpResponse
+from rest_framework.permissions import AllowAny
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import Booking
-from .serializers import BookingSerializer
+from sync.models import Booking
+from sync.serializers import BookingSerializer
 
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
@@ -19,6 +20,38 @@ class SyncView(APIView):
     - GET  /ical/availability/{apt}.ics → emit ICS of all Booking for apt
     """
     format_suffixes = ['.ics', '.json']
+    permission_classes = [AllowAny]
+
+    def get(self, request, apartment_id, format=None):
+        # 1) Trigger cal_sync to refresh its Airbnb pull
+        try:
+            sync_url = settings.CAL_SYNC_UPDATE_URL.format(apartment_id=apartment_id)
+            requests.post(sync_url, timeout=5)
+        except requests.RequestException:
+            # ignore failures here
+            pass
+
+        # 2) Build a proper VCALENDAR with required headers
+        cal = icalendar.Calendar()
+        cal.add('VERSION', '2.0')
+        cal.add('PRODID', '-//cal-sync//nairobi-apartments//EN')
+        cal.add('CALSCALE', 'GREGORIAN')
+
+        # 3) Add one VEVENT per Booking in our DB
+        for b in Booking.objects.filter(apartment_id=apartment_id):
+            ev = icalendar.Event()
+            ev.add('uid', b.external_id)
+            ev.add('dtstart', b.start_date)
+            # DTEND is exclusive in iCal, so add one day
+            ev.add('dtend', b.end_date + datetime.timedelta(days=1))
+            ev.add('summary', b.title or 'Booking')
+            cal.add_component(ev)
+
+        # 4) Return the calendar as text/calendar
+        ics_content = cal.to_ical()
+        return HttpResponse(ics_content, content_type='text/calendar')
+
+
     def post(self, request, apartment_id):
         ics_url = f"https://www.airbnb.com/calendar/ical/<YOUR_TOKEN>_{apartment_id}.ics"
         resp = requests.get(ics_url)
@@ -40,15 +73,3 @@ class SyncView(APIView):
                     }
                 )
         return Response({"synced": True})
-
-    def get(self, request, apartment_id, format=None):
-        cal = icalendar.Calendar()
-        for b in Booking.objects.filter(apartment_id=apartment_id):
-            ev = icalendar.Event()
-            ev.add('uid', b.external_id)
-            ev.add('dtstart', b.start_date)
-            ev.add('dtend',   b.end_date + datetime.timedelta(days=1))
-            ev.add('summary', b.title)
-            cal.add_component(ev)
-        return HttpResponse(cal.to_ical(), content_type='text/calendar')
-
