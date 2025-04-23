@@ -1,6 +1,6 @@
 from django.urls import path, re_path, include
 from rest_framework.routers import DefaultRouter
-from .views import BookingViewSet, SyncView
+from sync.views import SyncView, BookingViewSet
 
 app_name = "sync"
 

@@ -11,6 +11,22 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from sync.models import Booking
+from rest_framework import viewsets
+from sync.serializers import BookingSerializer
+
+
+class BookingViewSet(viewsets.ModelViewSet):
+    """
+    Provides the standard CRUD endpoints at /api/bookings/
+    Lookup by external_id so DELETE/PUT by that works.
+    """
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
+
+    # Use external_id (not numeric PK) in the URL for retrieve/update/delete
+    lookup_field = 'external_id'
+    lookup_value_regex = '[^/]+'   # allow alphanumeric, dashes, etc.
+
 
 class SyncView(APIView):
     """
