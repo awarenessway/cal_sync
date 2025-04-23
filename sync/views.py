@@ -64,18 +64,32 @@ class SyncView(APIView):
         ics_content = cal.to_ical()
         return HttpResponse(ics_content, content_type='text/calendar')
 
-
     def post(self, request, apartment_id):
-        ics_url = f"https://www.airbnb.com/calendar/ical/<YOUR_TOKEN>_{apartment_id}.ics"
-        resp = requests.get(ics_url)
-        resp.raise_for_status()
-        cal = icalendar.Calendar.from_ical(resp.text)
+        # 1) look up the apartment and its real Airbnb ICS URL
+        ics_url = settings.AIRBNB_ICS_URLS.get(int(apartment_id))
+        if not ics_url:
+            return Response(
+                {"error": f"No ICS URL configured for apartment {apartment_id}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        for comp in cal.walk():
-            if comp.name == "VEVENT":
-                uid   = str(comp.get('uid'))
+        # 2) fetch the feed
+        try:
+            r = requests.get(ics_url, timeout=10)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            return Response({"error": "cannot fetch ICS", "details": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        # 3) parse and upsert each VEVENT
+        try:
+            cal = icalendar.Calendar.from_ical(r.text)
+            for comp in cal.walk():
+                if comp.name != "VEVENT":
+                    continue
+                uid = str(comp.get('uid'))
                 start = comp.decoded('dtstart').date()
-                end   = comp.decoded('dtend').date() - datetime.timedelta(days=1)
+                # subtract one day because DTEND in Airbnb ICS is exclusive
+                end = comp.decoded('dtend').date() - datetime.timedelta(days=1)
                 Booking.objects.update_or_create(
                     external_id=uid,
                     defaults={
@@ -85,4 +99,9 @@ class SyncView(APIView):
                         'title': str(comp.get('summary', 'Airbnb'))
                     }
                 )
+        except Exception as e:
+            return Response(
+                {"error": "ICS parse failed", "details": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
         return Response({"synced": True})

@@ -129,8 +129,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 """ urls to be called by nairobi-apartments """
-CAL_SYNC_BASE_URL   = "https://cal-sync.example.com"
+CAL_SYNC_BASE_URL    = "https://filippo25django.pythonanywhere.com"
 CAL_SYNC_ICS_URL    = CAL_SYNC_BASE_URL + "/ical/availability/{apartment_id}.ics"
 CAL_SYNC_UPDATE_URL = CAL_SYNC_BASE_URL + "/api/sync/{apartment_id}/"
 
+AIRBNB_ICS_URLS = {
+    1: "https://…/export_calendar_apt1.ics",
+    2: "https://…/export_calendar_apt2.ics",
+    3: "https://…/export_calendar_apt3.ics",
+}
 
