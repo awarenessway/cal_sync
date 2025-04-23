@@ -47,6 +47,14 @@ class SyncView(APIView):
             ev.add('summary', b.title or 'Booking')
             cal.add_component(ev)
 
+        # add a dummy event for testing
+        ev = icalendar.Event()
+        ev.add('uid', 'test-event-1')
+        ev.add('dtstart', datetime.date.today())
+        ev.add('dtend', datetime.date.today() + datetime.timedelta(days=1))
+        ev.add('summary', 'TEST BLOCK')
+        cal.add_component(ev)
+
         # 4) Return the calendar as text/calendar
         ics_content = cal.to_ical()
         return HttpResponse(ics_content, content_type='text/calendar')
