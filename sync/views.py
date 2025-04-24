@@ -67,7 +67,8 @@ class SyncView(APIView):
 
         # 2) fetch the feed
         try:
-            r = requests.get(ics_url, timeout=10)
+            # r = requests.get(ics_url, timeout=10)
+            r = requests.get(ics_url, timeout=10, proxies={"http": None, "https": None})
             r.raise_for_status()
         except requests.RequestException as e:
             return Response(
@@ -75,22 +76,33 @@ class SyncView(APIView):
                 status=status.HTTP_502_BAD_GATEWAY
             )
 
-        # 3) parse and upsert each VEVENT
+        # 3) parse calendar
         try:
             cal = icalendar.Calendar.from_ical(r.text)
+        except Exception as e:
+            # treat empty/malformed as no events
+            cal = None
+
+        # 4) upsert only external (not local) VEVENT
+        if cal:
             for comp in cal.walk():
                 if comp.name != "VEVENT":
                     continue
 
+                # SKIP any event we ourselves pushed locally
+                uid = str(comp.get('uid'))
+                if uid.startswith('local-'):
+                    continue
+
                 # decoded may return date or datetime
                 raw_start = comp.decoded('dtstart')
-                start = raw_start.date() if hasattr(raw_start, 'date') else raw_start
-
                 raw_end = comp.decoded('dtend')
+
+                # normalize to date, subtract one day for DTEND
+                start = raw_start.date() if hasattr(raw_start, 'date') else raw_start
                 end = (raw_end.date() if hasattr(raw_end, 'date') else raw_end) \
                       - datetime.timedelta(days=1)
 
-                uid = str(comp.get('uid'))
                 Booking.objects.update_or_create(
                     external_id=uid,
                     defaults={
@@ -100,10 +112,5 @@ class SyncView(APIView):
                         'title':        str(comp.get('summary', 'Airbnb'))
                     }
                 )
-        except Exception as e:
-            return Response(
-                {"error": "ICS parse failed", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
         return Response({"synced": True})
